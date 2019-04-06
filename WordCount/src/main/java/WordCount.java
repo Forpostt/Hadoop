@@ -30,9 +30,6 @@ public class WordCount extends Configured implements Tool {
         Job job = Job.getInstance(getConf(), "WordCount");
         job.setJarByClass(this.getClass());
 
-        System.out.println(args[0]);
-        System.out.println(args[1]);
-
         FileInputFormat.addInputPaths(job, args[0]);
         FileOutputFormat.setOutputPath(job, new Path(args[1]));
 
