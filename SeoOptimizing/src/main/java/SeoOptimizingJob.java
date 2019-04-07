@@ -63,7 +63,7 @@ public class SeoOptimizingJob extends Configured implements Tool {
                 if (!queryString.equals(curQuery)) {
                     if (queryCount > maxQueryCount) {
                         maxQueryCount = queryCount;
-                        bestQuery = queryString;
+                        bestQuery = curQuery;
                     }
 
                     queryCount = 1;
