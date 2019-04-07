@@ -106,7 +106,7 @@ public class Parser extends Configured implements Tool {
                 result.append(link);
             }
 
-            context.write(key, new Text(result.toString()));
+            context.write(new LongWritable(Long.parseLong(line[0])), new Text(result.toString()));
         }
     }
 }
