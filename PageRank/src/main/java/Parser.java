@@ -61,7 +61,6 @@ public class Parser extends Configured implements Tool {
 
             ByteArrayOutputStream outputStream = new ByteArrayOutputStream(decodedDoc.length);
             byte[] buffer = new byte[1024];
-
             while (!inflater.finished()) {
                 int count = inflater.inflate(buffer);
                 outputStream.write(buffer, 0, count);
@@ -77,7 +76,6 @@ public class Parser extends Configured implements Tool {
 
             Elements links = doc.select("a[href]");
             String linkAttr;
-
             for (Element link : links) {
                 linkAttr = link.attr("abs:href");
                 if (!linkAttr.isEmpty()) {
@@ -102,9 +100,7 @@ public class Parser extends Configured implements Tool {
             }
 
             ArrayList<String> links = extractLinks(html);
-
             StringBuilder result = new StringBuilder();
-
             for (String link: links) {
                 result.append("\t");
                 result.append(link);
