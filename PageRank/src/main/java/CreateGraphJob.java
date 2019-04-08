@@ -18,10 +18,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.net.URISyntaxException;
 import java.net.URI;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.zip.Inflater;
 import java.util.zip.DataFormatException;
@@ -57,8 +57,11 @@ public class CreateGraphJob extends Configured implements Tool {
         job.setMapperClass(ParserMapper.class);
         job.setReducerClass(ParserReducer.class);
 
-        job.setOutputKeyClass(Text.class);
-        job.setOutputValueClass(PageRankNode.class);
+        job.setMapOutputKeyClass(Text.class);
+        job.setMapOutputValueClass(PageRankNode.class);
+
+        job.setOutputKeyClass(NullWritable.class);
+        job.setOutputValueClass(Text.class);
 
         return job;
     }
@@ -92,7 +95,6 @@ public class CreateGraphJob extends Configured implements Tool {
                 docIdToUrl.put(Long.parseLong(parts[0]), normalizedUrl);
                 docUrls.add(normalizedUrl);
             }
-
             reader.close();
         }
 
@@ -156,7 +158,7 @@ public class CreateGraphJob extends Configured implements Tool {
             for (String link: links) {
                 // Create PageRankNode for LeafNode
                 if (!docUrls.contains(link) && !processedUrls.contains(link)) {
-                    context.write(new Text(link), new PageRankNode(link, 1.0f, true));
+                    context.write(new Text(link), new PageRankNode(link, 1.0f, true, true));
                     processedUrls.add(link);
                 }
 
@@ -167,17 +169,18 @@ public class CreateGraphJob extends Configured implements Tool {
             String docUrl = docIdToUrl.get(docId);
             Boolean isLeaf = nodeLinks.length == 0;
             if (!processedUrls.contains(docUrl)) {
-                PageRankNode node = new PageRankNode(docUrl, 1.0f, docId, nodeLinks, isLeaf);
+                PageRankNode node = new PageRankNode(docUrl, 1.0f, docId, nodeLinks, isLeaf, true);
                 context.write(node.getUrl(), node);
                 processedUrls.add(docUrl);
             }
         }
     }
 
-    public static class ParserReducer extends Reducer<Text, PageRankNode, Text, PageRankNode> {
+    public static class ParserReducer extends Reducer<Text, PageRankNode, NullWritable, Text> {
         @Override
         protected void reduce(Text key, Iterable<PageRankNode> value, Context context) throws IOException, InterruptedException {
-            PageRankNode keyNode = new PageRankNode(key.toString(), 1.0f, true);
+            PageRankNode keyNode = new PageRankNode(key.toString(), 1.0f, true, true);
+            NullWritable nullWritable = NullWritable.get();
 
             for (PageRankNode node: value) {
                 if (!node.isLeaf()) {
@@ -185,8 +188,7 @@ public class CreateGraphJob extends Configured implements Tool {
                     break;
                 }
             }
-
-            context.write(key, keyNode);
+            context.write(nullWritable, new Text(keyNode.toString()));
         }
     }
 }

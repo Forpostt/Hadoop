@@ -11,6 +11,8 @@ public class PageRankNode implements Writable {
     private LongWritable docId_;
     private TextArrayWritable links_;
     private BooleanWritable isLeaf_;
+    private BooleanWritable realNode_;
+
 
     public static class TextArrayWritable extends ArrayWritable {
         public TextArrayWritable() {
@@ -23,31 +25,52 @@ public class PageRankNode implements Writable {
     }
 
     public PageRankNode() {
-        set(new Text(), new FloatWritable(), new LongWritable(), new TextArrayWritable(), new BooleanWritable());
+        set(new Text(), new FloatWritable(), new LongWritable(), new TextArrayWritable(), new BooleanWritable(), new BooleanWritable());
     }
 
-    public PageRankNode(String url, Float pageRank, Long docId, String[] links, Boolean isLeaf) {
+    public PageRankNode(String url, Float pageRank, Long docId, String[] links, Boolean isLeaf, Boolean realNode) {
         Text[] textLinks = new Text[links.length];
         for (int i = 0; i < links.length; i++) {
             textLinks[i] = new Text(links[i]);
         }
-        set(new Text(url), new FloatWritable(pageRank), new LongWritable(docId), new TextArrayWritable(textLinks), new BooleanWritable(isLeaf));
+        set(new Text(url), new FloatWritable(pageRank), new LongWritable(docId), new TextArrayWritable(textLinks), new BooleanWritable(isLeaf), new BooleanWritable(realNode));
     }
 
-    public PageRankNode(String url, Float pageRank, Boolean isLeaf) {
-        set(new Text(url), new FloatWritable(pageRank), new LongWritable(), new TextArrayWritable(), new BooleanWritable(isLeaf));
+    public PageRankNode(String url, Float pageRank, Boolean isLeaf, Boolean realNode) {
+        set(new Text(url), new FloatWritable(pageRank), new LongWritable(), new TextArrayWritable(), new BooleanWritable(isLeaf), new BooleanWritable(realNode));
     }
 
     public Text getUrl() {
         return url_;
     }
 
-    private void set(Text url, FloatWritable pageRank, LongWritable docId, TextArrayWritable links, BooleanWritable isLeaf) {
+    public String[] getLinks() {
+        return links_.toStrings();
+    }
+
+    public Integer linksCount() {
+        return links_.toStrings().length;
+    }
+
+    public Float getPageRank() {
+        return pageRank_.get();
+    }
+
+    public Boolean realNode() {
+        return realNode_.get();
+    }
+
+    public void setPageRank(Float newPageRank) {
+        pageRank_ = new FloatWritable(newPageRank);
+    }
+
+    private void set(Text url, FloatWritable pageRank, LongWritable docId, TextArrayWritable links, BooleanWritable isLeaf, BooleanWritable realNode) {
         url_ = url;
         pageRank_ = pageRank;
         docId_ = docId;
         links_ = links;
         isLeaf_ = isLeaf;
+        realNode_ = realNode;
     }
 
     public boolean isLeaf() {
@@ -61,6 +84,7 @@ public class PageRankNode implements Writable {
         docId_.write(out);
         links_.write(out);
         isLeaf_.write(out);
+        realNode_.write(out);
     }
 
     @Override
@@ -70,6 +94,39 @@ public class PageRankNode implements Writable {
         docId_.readFields(input);
         links_.readFields(input);
         isLeaf_.readFields(input);
+        realNode_.readFields(input);
+    }
+
+    @Override
+    public String toString() {
+        StringBuilder string = new StringBuilder();
+        string.append("url:=").append(url_.toString()).append("\tpageRank:=").append(pageRank_.toString()).append("\tdocId:=")
+                .append(docId_.toString()).append("\tisLeaf:=").append(isLeaf_.toString()).append("\trealNode:=").append(realNode_.toString());
+
+        string.append("\tlinksCount:=").append(linksCount()).append("\tlinks:=");
+        for (String link: links_.toStrings()) {
+            string.append(link).append(";");
+        }
+        return string.toString();
+    }
+
+    public void fromString(String s) {
+        String[] parts = s.split("\t");
+        url_ = new Text(parts[0].split(":=")[1]);
+        pageRank_ = new FloatWritable(Float.parseFloat(parts[1].split(":=")[1]));
+        docId_ = new LongWritable(Long.parseLong(parts[2].split(":=")[1]));
+        isLeaf_ = new BooleanWritable(Boolean.parseBoolean(parts[3].split(":=")[1]));
+        realNode_ = new BooleanWritable(Boolean.parseBoolean(parts[4].split(":=")[1]));
+
+        int linksCount = Integer.parseInt(parts[5].split(":=")[1]);
+        if (linksCount != 0) {
+            Text[] linksText = new Text[linksCount];
+            String[] links = parts[6].split(":=")[1].split(";");
+            for (int i = 0; i < linksCount; i++) {
+                linksText[i] = new Text(links[i]);
+            }
+            links_ = new TextArrayWritable(linksText);
+        }
     }
 
 }
