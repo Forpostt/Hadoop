@@ -13,6 +13,14 @@ public class PageRankNode implements Writable {
     private BooleanWritable isLeaf_;
     private BooleanWritable realNode_;
 
+    private String separator = "<<sep>>";
+    private String urlSeparator = "<<urlSep>>";
+
+    public static void main(String[] args) {
+        String s = "url:=http://ka-news.de/region/karlsruhe/karlsruhe~/Geiselnahme-in-Karlsruhe-Taeter-schwer-bewaffnet-Verletzte;art6066,913326\tpageRank:=1.0\tdocId:=0\tisLeaf:=true\trealNode:=true\tlinksCount:=0\tlinks:=";
+        PageRankNode node = new PageRankNode();
+        node.fromString(s);
+    }
 
     public static class TextArrayWritable extends ArrayWritable {
         public TextArrayWritable() {
@@ -100,18 +108,19 @@ public class PageRankNode implements Writable {
     @Override
     public String toString() {
         StringBuilder string = new StringBuilder();
-        string.append("url:=").append(url_.toString()).append("\tpageRank:=").append(pageRank_.toString()).append("\tdocId:=")
-                .append(docId_.toString()).append("\tisLeaf:=").append(isLeaf_.toString()).append("\trealNode:=").append(realNode_.toString());
+        string.append("url:=").append(url_.toString()).append(separator).append("pageRank:=").append(pageRank_.toString()).append(separator)
+                .append("docId:=").append(docId_.toString()).append(separator).append("isLeaf:=").append(isLeaf_.toString()).append(separator)
+                .append("realNode:=").append(realNode_.toString());
 
-        string.append("\tlinksCount:=").append(linksCount()).append("\tlinks:=");
+        string.append(separator).append("linksCount:=").append(linksCount()).append(separator).append("links:=");
         for (String link: links_.toStrings()) {
-            string.append(link).append(";");
+            string.append(link).append(urlSeparator);
         }
         return string.toString();
     }
 
     public void fromString(String s) {
-        String[] parts = s.split("\t");
+        String[] parts = s.split(separator);
         url_ = new Text(parts[0].split(":=")[1]);
         pageRank_ = new FloatWritable(Float.parseFloat(parts[1].split(":=")[1]));
         docId_ = new LongWritable(Long.parseLong(parts[2].split(":=")[1]));
@@ -121,7 +130,7 @@ public class PageRankNode implements Writable {
         int linksCount = Integer.parseInt(parts[5].split(":=")[1]);
         if (linksCount != 0) {
             Text[] linksText = new Text[linksCount];
-            String[] links = parts[6].split(":=")[1].split(";");
+            String[] links = parts[6].split(":=")[1].split(urlSeparator);
             for (int i = 0; i < linksCount; i++) {
                 linksText[i] = new Text(links[i]);
             }

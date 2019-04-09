@@ -74,6 +74,17 @@ public class CreateGraphJob extends Configured implements Tool {
         private static HashSet<String> processedUrls = new HashSet<>();
 
         private static String normalizeUrl(String url) {
+            url = url.replace("https:", "http:");
+            url = url.replace("www.", "");
+            url = url.replace(" ", "");
+
+            if (url.startsWith("//")) {
+                url = "http:" + url;
+            }
+            if (url.endsWith("/")) {
+                url = url.substring(0, url.length() - 1);
+            }
+
             try {
                 URI uri = new URI(url).normalize();
                 return uri.toString();
