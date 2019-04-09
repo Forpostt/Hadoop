@@ -22,12 +22,7 @@ public class PageRankJob extends Configured implements Tool {
     @Override
     public int run(String[] args) throws Exception {
         Job job = getJobConf(getConf(), args[0], args[1]);
-        try {
-            return job.waitForCompletion(true) ? 0 : 1;
-        } catch (Exception e) {
-            System.out.println("Error: " + e.getMessage());
-        }
-        return 1;
+        return job.waitForCompletion(true) ? 0 : 1;
     }
 
     private Job getJobConf(Configuration conf, String input, String output) throws IOException {
@@ -42,7 +37,7 @@ public class PageRankJob extends Configured implements Tool {
         job.setReducerClass(PageRankReducer.class);
 
         job.setMapOutputKeyClass(Text.class);
-        job.setMapOutputValueClass(PageRankNode.class);
+        job.setMapOutputValueClass(Text.class);
 
         job.setOutputKeyClass(NullWritable.class);
         job.setOutputValueClass(Text.class);
@@ -50,30 +45,32 @@ public class PageRankJob extends Configured implements Tool {
         return job;
     }
 
-    public static class PageRankMapper extends Mapper<LongWritable, Text, Text, PageRankNode> {
+    public static class PageRankMapper extends Mapper<LongWritable, Text, Text, Text> {
         @Override
         protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
             // Save node
             PageRankNode node = new PageRankNode();
             node.fromString(value.toString());
-            context.write(node.getUrl(), node);
+            context.write(node.getUrl(), new Text(node.toString()));
 
-            // Whatever
             for (String link: node.getLinks()) {
                 PageRankNode nodeOne = new PageRankNode(link, node.getPageRank() / node.linksCount(), node.isLeaf(), false);
-                context.write(new Text(link), nodeOne);
+                context.write(new Text(link), new Text(nodeOne.toString()));
             }
         }
     }
 
-    public static class PageRankReducer extends Reducer<Text, PageRankNode, NullWritable, Text> {
+    public static class PageRankReducer extends Reducer<Text, Text, NullWritable, Text> {
         @Override
-        protected void reduce(Text key, Iterable<PageRankNode> value, Context context) throws IOException, InterruptedException {
-            PageRankNode keyNode = new PageRankNode();
+        protected void reduce(Text key, Iterable<Text> value, Context context) throws IOException, InterruptedException {
+            PageRankNode keyNode = new PageRankNode(key.toString(), 0.0f, false, false);
             NullWritable nullWritable = NullWritable.get();
 
             Float pageRank = 0.0f;
-            for (PageRankNode node: value) {
+            for (Text nodeString: value) {
+                PageRankNode node = new PageRankNode();
+                node.fromString(nodeString.toString());
+
                 if (node.realNode()) {
                     keyNode = node;
                 } else {
