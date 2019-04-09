@@ -1,3 +1,4 @@
+import com.sun.xml.internal.ws.policy.privateutil.PolicyUtils;
 import org.apache.commons.codec.binary.Base64;
 
 import org.apache.hadoop.conf.Configuration;
@@ -58,7 +59,7 @@ public class CreateGraphJob extends Configured implements Tool {
         job.setReducerClass(ParserReducer.class);
 
         job.setMapOutputKeyClass(Text.class);
-        job.setMapOutputValueClass(PageRankNode.class);
+        job.setMapOutputValueClass(Text.class);
 
         job.setOutputKeyClass(NullWritable.class);
         job.setOutputValueClass(Text.class);
@@ -66,7 +67,7 @@ public class CreateGraphJob extends Configured implements Tool {
         return job;
     }
 
-    public static class ParserMapper extends Mapper<LongWritable, Text, Text, PageRankNode> {
+    public static class ParserMapper extends Mapper<LongWritable, Text, Text, Text> {
         private static byte[] buffer = new byte[1024];
         private static HashMap<Long, String> docIdToUrl = new HashMap<>();
         private static HashSet<String> docUrls = new HashSet<>();
@@ -158,7 +159,7 @@ public class CreateGraphJob extends Configured implements Tool {
             for (String link: links) {
                 // Create PageRankNode for LeafNode
                 if (!docUrls.contains(link) && !processedUrls.contains(link)) {
-                    context.write(new Text(link), new PageRankNode(link, 1.0f, true, true));
+                    context.write(new Text(link), new Text(new PageRankNode(link, 1.0f, true, true).toString()));
                     processedUrls.add(link);
                 }
 
@@ -170,19 +171,22 @@ public class CreateGraphJob extends Configured implements Tool {
             Boolean isLeaf = nodeLinks.length == 0;
             if (!processedUrls.contains(docUrl)) {
                 PageRankNode node = new PageRankNode(docUrl, 1.0f, docId, nodeLinks, isLeaf, true);
-                context.write(node.getUrl(), node);
+                context.write(node.getUrl(), new Text(node.toString()));
                 processedUrls.add(docUrl);
             }
         }
     }
 
-    public static class ParserReducer extends Reducer<Text, PageRankNode, NullWritable, Text> {
+    public static class ParserReducer extends Reducer<Text, Text, NullWritable, Text> {
         @Override
-        protected void reduce(Text key, Iterable<PageRankNode> value, Context context) throws IOException, InterruptedException {
+        protected void reduce(Text key, Iterable<Text> value, Context context) throws IOException, InterruptedException {
             PageRankNode keyNode = new PageRankNode(key.toString(), 1.0f, true, true);
             NullWritable nullWritable = NullWritable.get();
 
-            for (PageRankNode node: value) {
+            for (Text nodeString: value) {
+                PageRankNode node = new PageRankNode();
+                node.fromString(nodeString.toString());
+
                 if (!node.isLeaf()) {
                     keyNode = node;
                     break;
