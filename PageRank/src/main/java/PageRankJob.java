@@ -93,23 +93,20 @@ public class PageRankJob extends Configured implements Tool {
     }
 
     public static class PageRankReducer extends Reducer<Text, Text, NullWritable, Text> {
-        float leafsPageRankAddition = -1.0f;
+        float leafsPageRank = 0.0f;
+        long totalNodes = 0L;
 
         @Override
         protected void setup(Context context) throws IOException {
             BufferedReader reader = new BufferedReader(new FileReader(leafsPageRankFile));
-            float leafsPageRank = 0.0f;
             for (String line; (line = reader.readLine()) != null; ) {
                 leafsPageRank += Float.parseFloat(line);
             }
 
             reader = new BufferedReader(new FileReader(totalNodesFile));
-            long totalNodes = 0L;
             for (String line; (line = reader.readLine()) != null; ) {
                 totalNodes += Long.parseLong(line);
             }
-
-            leafsPageRankAddition = leafsPageRank / totalNodes;
         }
 
         @Override
@@ -124,7 +121,7 @@ public class PageRankJob extends Configured implements Tool {
                     pageRank += Float.parseFloat(nodeString.toString());
                 }
             }
-            pageRank = 0.15f * (pageRank + leafsPageRankAddition) + 0.85f;
+            pageRank = 0.15f * (pageRank + leafsPageRank / totalNodes) + 0.85f / totalNodes;
 
             keyNode.setPageRank(pageRank);
             context.write(NullWritable.get(), new Text(keyNode.toString()));
