@@ -10,10 +10,16 @@ import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
+import java.io.FileReader;
+import java.io.BufferedReader;
+import java.io.FileWriter;
 import java.io.IOException;
 
 
 public class PageRankJob extends Configured implements Tool {
+    private static String leafsPageRankFile = "leafs_page_rank";
+    private static String totalNodesFile = "total_nodes";
+
     public static void main(String[] args) throws Exception {
         int rc = ToolRunner.run(new PageRankJob(), args);
         System.exit(rc);
@@ -22,6 +28,13 @@ public class PageRankJob extends Configured implements Tool {
     @Override
     public int run(String[] args) throws Exception {
         Job job = getJobConf(getConf(), args[0], args[1]);
+
+        // Create files for mapred global variables
+        FileWriter fw = new FileWriter(leafsPageRankFile);
+        fw.close();
+        fw = new FileWriter(totalNodesFile);
+        fw.close();
+
         return job.waitForCompletion(true) ? 0 : 1;
     }
 
@@ -46,26 +59,64 @@ public class PageRankJob extends Configured implements Tool {
     }
 
     public static class PageRankMapper extends Mapper<LongWritable, Text, Text, Text> {
+        float leafsPageRank = 0.0f;
+        long nodesCount = 0L;
+
         @Override
         protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
             // Save node
             PageRankNode node = PageRankNode.fromString(value.toString());
             context.write(new Text(node.getUrl()), new Text(node.toString()));
+            nodesCount++;
+
+            if (node.isLeaf()) {
+                leafsPageRank += node.getPageRank();
+                return;
+            }
 
             for (String link: node.getLinks()) {
                 Float pageRank = node.getPageRank() / node.linksCount();
                 context.write(new Text(link), new Text(pageRank.toString()));
             }
         }
+
+        @Override
+        protected void cleanup(Context context) throws IOException {
+            FileWriter fw = new FileWriter(leafsPageRankFile, true);
+            fw.write(Float.toString(leafsPageRank) + "\n");
+            fw.close();
+
+            fw = new FileWriter(totalNodesFile, true);
+            fw.write(Long.toString(nodesCount) + "\n");
+            fw.close();
+        }
     }
 
     public static class PageRankReducer extends Reducer<Text, Text, NullWritable, Text> {
+        float leafsPageRankAddition = -1.0f;
+
+        @Override
+        protected void setup(Context context) throws IOException {
+            BufferedReader reader = new BufferedReader(new FileReader(leafsPageRankFile));
+            float leafsPageRank = 0.0f;
+            for (String line; (line = reader.readLine()) != null; ) {
+                leafsPageRank += Float.parseFloat(line);
+            }
+
+            reader = new BufferedReader(new FileReader(totalNodesFile));
+            long totalNodes = 0L;
+            for (String line; (line = reader.readLine()) != null; ) {
+                totalNodes += Long.parseLong(line);
+            }
+
+            leafsPageRankAddition = leafsPageRank / totalNodes;
+        }
+
         @Override
         protected void reduce(Text key, Iterable<Text> value, Context context) throws IOException, InterruptedException {
             PageRankNode keyNode = new PageRankNode(key.toString(), 0.0f, false);
-            NullWritable nullWritable = NullWritable.get();
 
-            Float pageRank = 0.0f;
+            float pageRank = 0.0f;
             for (Text nodeString: value) {
                 if (PageRankNode.isPageRankNodeString(nodeString.toString())) {
                     keyNode = PageRankNode.fromString(nodeString.toString());
@@ -73,10 +124,10 @@ public class PageRankJob extends Configured implements Tool {
                     pageRank += Float.parseFloat(nodeString.toString());
                 }
             }
-            pageRank = 0.15f * pageRank + 0.85f;
+            pageRank = 0.15f * (pageRank + leafsPageRankAddition) + 0.85f;
 
             keyNode.setPageRank(pageRank);
-            context.write(nullWritable, new Text(keyNode.toString()));
+            context.write(NullWritable.get(), new Text(keyNode.toString()));
         }
     }
 }

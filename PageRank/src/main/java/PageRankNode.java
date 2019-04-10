@@ -16,7 +16,6 @@ public class PageRankNode {
     public PageRankNode(String url, Float pageRank, Long docId, String[] links, Boolean isLeaf) {
         String[] linksCopy = new String[links.length];
         System.arraycopy(links, 0, linksCopy, 0, links.length);
-
         set(url, pageRank, docId, linksCopy, isLeaf);
     }
 
