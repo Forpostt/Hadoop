@@ -16,6 +16,7 @@ import java.io.IOException;
 public class HITSJob extends Configured implements Tool {
     private static String authorityPrefix = "authority:=";
     private static String hubPrefix = "hub:=";
+    private static float normalizer = 0.1f;
 
     public static void main(String[] args) throws Exception {
         int rc = ToolRunner.run(new HITSJob(), args);
@@ -25,11 +26,12 @@ public class HITSJob extends Configured implements Tool {
     @Override
     public int run(String[] args) throws Exception {
         String input = args[0], output = args[1] + 0;
-        for (int i = 0; i < 2; i++) {
+        for (int i = 0; i < 5; i++) {
             Job job = getJobConf(getConf(), input, output);
             if (!job.waitForCompletion(true)) {
                 return 1;
             }
+            System.out.println("Iteration " + i + " finished");
 
             input = args[1] + i + "/part-*";
             output = args[1] + (i + 1);
@@ -64,11 +66,11 @@ public class HITSJob extends Configured implements Tool {
             context.write(new Text(node.getUrl()), new Text(node.toString()));
 
             for (String link: node.getInLinks()) {
-                context.write(new Text(link), new Text(hubPrefix + node.getAuthority()));
+                context.write(new Text(link), new Text(hubPrefix + (node.getAuthority() * normalizer)));
             }
 
             for (String link: node.getOutLinks()) {
-                context.write(new Text(link), new Text(authorityPrefix + node.getHub()));
+                context.write(new Text(link), new Text(authorityPrefix + (node.getHub() * normalizer)));
             }
         }
     }
