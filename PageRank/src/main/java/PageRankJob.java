@@ -27,15 +27,22 @@ public class PageRankJob extends Configured implements Tool {
 
     @Override
     public int run(String[] args) throws Exception {
-        Job job = getJobConf(getConf(), args[0], args[1]);
+        String input = args[0], output = args[1] + 0;
+        for (int i = 0; i < 10; i++) {
+            FileWriter fw = new FileWriter(leafsPageRankFile);
+            fw.close();
+            fw = new FileWriter(totalNodesFile);
+            fw.close();
 
-        // Create files for mapred global variables
-        FileWriter fw = new FileWriter(leafsPageRankFile);
-        fw.close();
-        fw = new FileWriter(totalNodesFile);
-        fw.close();
+            Job job = getJobConf(getConf(), input, output);
+            if (!job.waitForCompletion(true)) {
+                return 1;
+            }
 
-        return job.waitForCompletion(true) ? 0 : 1;
+            input = args[1] + i + "/part-*";
+            output = args[1] + (i + 1);
+        }
+        return 0;
     }
 
     private Job getJobConf(Configuration conf, String input, String output) throws IOException {
@@ -121,7 +128,7 @@ public class PageRankJob extends Configured implements Tool {
                     pageRank += Float.parseFloat(nodeString.toString());
                 }
             }
-            pageRank = 0.15f * (pageRank + leafsPageRank / totalNodes) + 0.85f / totalNodes;
+            pageRank = 0.85f * (pageRank + leafsPageRank / totalNodes) + 0.15f / totalNodes;
 
             keyNode.setPageRank(pageRank);
             context.write(NullWritable.get(), new Text(keyNode.toString()));
