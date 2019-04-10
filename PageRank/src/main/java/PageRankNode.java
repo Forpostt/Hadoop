@@ -13,8 +13,8 @@ public class PageRankNode implements Writable {
     private BooleanWritable isLeaf_;
     private BooleanWritable realNode_;
 
-    private String separator = "<<sep>>";
-    private String urlSeparator = "<<urlSep>>";
+    private String separator = " <<sep>> ";
+    private String urlSeparator = " <<urlSep>> ";
 
     public static void main(String[] args) {
         String s = "url:=http://ka-news.de/region/karlsruhe/karlsruhe~/Geiselnahme-in-Karlsruhe-Taeter-schwer-bewaffnet-Verletzte;art6066,913326\tpageRank:=1.0\tdocId:=0\tisLeaf:=true\trealNode:=true\tlinksCount:=0\tlinks:=";
@@ -136,6 +136,10 @@ public class PageRankNode implements Writable {
             }
             links_ = new TextArrayWritable(linksText);
         }
+    }
+
+    public static boolean isPageRankNodeString(String s) {
+        return s.startsWith("url:=");
     }
 
 }

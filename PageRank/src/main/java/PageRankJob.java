@@ -54,8 +54,8 @@ public class PageRankJob extends Configured implements Tool {
             context.write(node.getUrl(), new Text(node.toString()));
 
             for (String link: node.getLinks()) {
-                PageRankNode nodeOne = new PageRankNode(link, node.getPageRank() / node.linksCount(), node.isLeaf(), false);
-                context.write(new Text(link), new Text(nodeOne.toString()));
+                Float pageRank = node.getPageRank() / node.linksCount();
+                context.write(new Text(link), new Text(pageRank.toString()));
             }
         }
     }
@@ -68,13 +68,13 @@ public class PageRankJob extends Configured implements Tool {
 
             Float pageRank = 0.0f;
             for (Text nodeString: value) {
-                PageRankNode node = new PageRankNode();
-                node.fromString(nodeString.toString());
-
-                if (node.realNode()) {
+                if (PageRankNode.isPageRankNodeString(nodeString.toString())) {
+                    PageRankNode node = new PageRankNode();
+                    node.fromString(nodeString.toString());
                     keyNode = node;
+
                 } else {
-                    pageRank += node.getPageRank();
+                    pageRank += Float.parseFloat(nodeString.toString());
                 }
             }
             pageRank = 0.15f * pageRank + 0.85f;
