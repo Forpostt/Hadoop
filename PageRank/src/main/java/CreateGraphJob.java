@@ -169,7 +169,7 @@ public class CreateGraphJob extends Configured implements Tool {
             for (String link: links) {
                 // Create PageRankNode for LeafNode
                 if (!docUrls.contains(link) && !processedUrls.contains(link)) {
-                    context.write(new Text(link), new Text(new PageRankNode(link, 1.0f, true, true).toString()));
+                    context.write(new Text(link), new Text(new PageRankNode(link, 1.0f, true).toString()));
                     processedUrls.add(link);
                 }
 
@@ -180,8 +180,8 @@ public class CreateGraphJob extends Configured implements Tool {
             String docUrl = docIdToUrl.get(docId);
             Boolean isLeaf = nodeLinks.length == 0;
             if (!processedUrls.contains(docUrl)) {
-                PageRankNode node = new PageRankNode(docUrl, 1.0f, docId, nodeLinks, isLeaf, true);
-                context.write(node.getUrl(), new Text(node.toString()));
+                PageRankNode node = new PageRankNode(docUrl, 1.0f, docId, nodeLinks, isLeaf);
+                context.write(new Text(node.getUrl()), new Text(node.toString()));
                 processedUrls.add(docUrl);
             }
         }
@@ -190,12 +190,11 @@ public class CreateGraphJob extends Configured implements Tool {
     public static class ParserReducer extends Reducer<Text, Text, NullWritable, Text> {
         @Override
         protected void reduce(Text key, Iterable<Text> value, Context context) throws IOException, InterruptedException {
-            PageRankNode keyNode = new PageRankNode(key.toString(), 1.0f, true, true);
+            PageRankNode keyNode = new PageRankNode(key.toString(), 1.0f, true);
             NullWritable nullWritable = NullWritable.get();
 
             for (Text nodeString: value) {
-                PageRankNode node = new PageRankNode();
-                node.fromString(nodeString.toString());
+                PageRankNode node = PageRankNode.fromString(nodeString.toString());
 
                 if (!node.isLeaf()) {
                     keyNode = node;

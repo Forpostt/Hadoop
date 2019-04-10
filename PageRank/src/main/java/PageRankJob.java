@@ -49,9 +49,8 @@ public class PageRankJob extends Configured implements Tool {
         @Override
         protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
             // Save node
-            PageRankNode node = new PageRankNode();
-            node.fromString(value.toString());
-            context.write(node.getUrl(), new Text(node.toString()));
+            PageRankNode node = PageRankNode.fromString(value.toString());
+            context.write(new Text(node.getUrl()), new Text(node.toString()));
 
             for (String link: node.getLinks()) {
                 Float pageRank = node.getPageRank() / node.linksCount();
@@ -63,16 +62,13 @@ public class PageRankJob extends Configured implements Tool {
     public static class PageRankReducer extends Reducer<Text, Text, NullWritable, Text> {
         @Override
         protected void reduce(Text key, Iterable<Text> value, Context context) throws IOException, InterruptedException {
-            PageRankNode keyNode = new PageRankNode(key.toString(), 0.0f, false, false);
+            PageRankNode keyNode = new PageRankNode(key.toString(), 0.0f, false);
             NullWritable nullWritable = NullWritable.get();
 
             Float pageRank = 0.0f;
             for (Text nodeString: value) {
                 if (PageRankNode.isPageRankNodeString(nodeString.toString())) {
-                    PageRankNode node = new PageRankNode();
-                    node.fromString(nodeString.toString());
-                    keyNode = node;
-
+                    keyNode = PageRankNode.fromString(nodeString.toString());
                 } else {
                     pageRank += Float.parseFloat(nodeString.toString());
                 }
