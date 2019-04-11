@@ -128,7 +128,9 @@ public class PageRankJob extends Configured implements Tool {
                     pageRank += Float.parseFloat(nodeString.toString());
                 }
             }
-            pageRank = 0.85f * (pageRank + leafsPageRank / totalNodes) + 0.15f / totalNodes;
+
+            // page rank formula, when init page rank is 1.0
+            pageRank = 0.85f * (pageRank + leafsPageRank / totalNodes) + 0.15f;
 
             keyNode.setPageRank(pageRank);
             context.write(NullWritable.get(), new Text(keyNode.toString()));
