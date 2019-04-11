@@ -57,9 +57,7 @@ public class HITSStatistic extends Configured implements Tool {
         @Override
         protected void map(LongWritable key, Text value, Context context) {
             HITSNode node = HITSNode.fromString(value.toString());
-            if (node.getDocId() > -1) {
-                topAuthority.add(node);
-            }
+            topAuthority.add(node);
             totalNodes++;
 
             if (topAuthority.size() > topN) {

@@ -60,9 +60,7 @@ public class PageRankStatistic extends Configured implements Tool {
         @Override
         protected void map(LongWritable key, Text value, Context context) {
             PageRankNode node = PageRankNode.fromString(value.toString());
-            if (node.getDocId() > -1) {
-                topAuthority.add(node);
-            }
+            topAuthority.add(node);
             totalNodes++;
 
             if (topAuthority.size() > topN) {
