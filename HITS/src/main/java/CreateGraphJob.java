@@ -73,6 +73,9 @@ public class CreateGraphJob extends Configured implements Tool {
             url = url.replace("https:", "http:");
             url = url.replace("www.", "");
             url = url.replace(" ", "");
+            url = url.replace("<br/>", "");
+            url = url.replace("<br>", "");
+            url = url.replace("\"", "");
 
             if (url.startsWith("//")) {
                 url = "http:" + url;

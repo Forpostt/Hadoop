@@ -54,6 +54,10 @@ public class PageRankNode implements Comparable<PageRankNode> {
         return links_.length;
     }
 
+    public Long getDocId() {
+        return docId_;
+    }
+
     public void setPageRank(Float newPageRank) {
         pageRank_ = newPageRank;
     }
@@ -62,7 +66,7 @@ public class PageRankNode implements Comparable<PageRankNode> {
     public String toString() {
         StringBuilder string = new StringBuilder();
         string.append("url:=").append(url_).append(separator).append("pageRank:=").append(pageRank_.toString()).append(separator)
-                .append("docId:=").append(docId_.toString()).append(separator).append("isLeaf:=").append(isLeaf_.toString()).append(separator);
+                .append("docId:=").append(docId_.toString()).append(separator).append("isLeaf:=").append(isLeaf_.toString());
 
         string.append(separator).append("linksCount:=").append(linksCount()).append(separator).append("links:=");
         for (String link: links_) {
@@ -80,9 +84,9 @@ public class PageRankNode implements Comparable<PageRankNode> {
         node.docId_ = Long.parseLong(parts[2].split(":=")[1]);
         node.isLeaf_ = Boolean.parseBoolean(parts[3].split(":=")[1]);
 
-        int linksCount = Integer.parseInt(parts[5].split(":=")[1]);
+        int linksCount = Integer.parseInt(parts[4].split(":=")[1]);
         if (linksCount != 0) {
-            node.links_ = parts[6].split(":=")[1].split(node.urlSeparator);
+            node.links_ = parts[5].split(":=")[1].split(node.urlSeparator);
         }
 
         return node;
@@ -96,5 +100,9 @@ public class PageRankNode implements Comparable<PageRankNode> {
     public int compareTo(PageRankNode o) {
         int res = pageRank_.compareTo(o.getPageRank());
         return res == 0 ? url_.compareTo(o.getUrl()) : res;
+    }
+
+    public void cleanLinks() {
+        links_ = new String[]{};
     }
 }
