@@ -1,6 +1,8 @@
 import java.util.ArrayList;
+import java.util.Comparator;
 
-public class HITSNode {
+
+public class HITSNode implements Comparable<HITSNode> {
     private String url_;
     private Float authority_;
     private Float hub_;
@@ -11,6 +13,12 @@ public class HITSNode {
     private String separator = " <<sep>> ";
     private String urlSeparator = " <<urlSep>> ";
 
+    public static class AuthorityComparator implements Comparator<HITSNode> {
+        @Override
+        public int compare(HITSNode o1, HITSNode o2) {
+            return Float.compare(o1.getAuthority(), o2.getAuthority());
+        }
+    }
 
     public HITSNode() {
         set("", 0.0f, 0.0f, -1L, new String[]{}, new String[]{});
@@ -55,6 +63,10 @@ public class HITSNode {
 
     public Float getHub() {
         return hub_;
+    }
+
+    public Boolean isLeaf() {
+        return docId_ < 0;
     }
 
     public void setInLinks(ArrayList<String> inLinks) {
@@ -121,5 +133,11 @@ public class HITSNode {
 
     public static boolean isHITSNodeString(String s) {
         return s.startsWith("url:=");
+    }
+
+    @Override
+    public int compareTo(HITSNode o) {
+        int res = authority_.compareTo(o.authority_);
+        return res == 0 ? url_.compareTo(o.getUrl()) : res;
     }
 }
