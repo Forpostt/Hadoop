@@ -28,7 +28,7 @@ public class PageRankJob extends Configured implements Tool {
     @Override
     public int run(String[] args) throws Exception {
         String input = args[0], output = args[1] + 0;
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 5; i++) {
             FileWriter fw = new FileWriter(leafsPageRankFile);
             fw.close();
             fw = new FileWriter(totalNodesFile);
@@ -38,6 +38,7 @@ public class PageRankJob extends Configured implements Tool {
             if (!job.waitForCompletion(true)) {
                 return 1;
             }
+            System.out.println("Iteration " + i + " finished");
 
             input = args[1] + i + "/part-*";
             output = args[1] + (i + 1);
@@ -90,11 +91,11 @@ public class PageRankJob extends Configured implements Tool {
         @Override
         protected void cleanup(Context context) throws IOException {
             FileWriter fw = new FileWriter(leafsPageRankFile, true);
-            fw.write(Float.toString(leafsPageRank) + "\n");
+            fw.write(leafsPageRank + "\n");
             fw.close();
 
             fw = new FileWriter(totalNodesFile, true);
-            fw.write(Long.toString(nodesCount) + "\n");
+            fw.write(nodesCount + "\n");
             fw.close();
         }
     }

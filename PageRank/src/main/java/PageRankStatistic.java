@@ -13,11 +13,11 @@ import java.io.IOException;
 import java.util.TreeSet;
 
 
-public class HITSStatistic extends Configured implements Tool {
+public class PageRankStatistic extends Configured implements Tool {
     public static int topN = 30;
 
     public static void main(String[] args) throws Exception {
-        int rc = ToolRunner.run(new HITSStatistic(), args);
+        int rc = ToolRunner.run(new PageRankStatistic(), args);
         System.exit(rc);
     }
 
@@ -44,13 +44,13 @@ public class HITSStatistic extends Configured implements Tool {
     }
 
     public static class StatisticMapper extends Mapper<LongWritable, Text, NullWritable, Text> {
-        TreeSet<HITSNode> topAuthority = new TreeSet<>();
+        TreeSet<PageRankNode> topAuthority = new TreeSet<>();
         private long totalNodes = 0;
         private long totalLeafs = 0;
 
         @Override
         protected void map(LongWritable key, Text value, Context context) {
-            HITSNode node = HITSNode.fromString(value.toString());
+            PageRankNode node = PageRankNode.fromString(value.toString());
             topAuthority.add(node);
             totalNodes++;
 
@@ -65,7 +65,7 @@ public class HITSStatistic extends Configured implements Tool {
 
         @Override
         protected void cleanup(Context context) throws IOException, InterruptedException{
-            for (HITSNode node: topAuthority) {
+            for (PageRankNode node: topAuthority) {
                 context.write(NullWritable.get(), new Text(node.toString()));
             }
             context.write(NullWritable.get(), new Text("totalNode:=" + totalNodes));

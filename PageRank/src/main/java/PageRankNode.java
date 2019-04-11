@@ -1,4 +1,6 @@
-public class PageRankNode {
+import org.apache.hadoop.yarn.webapp.view.HtmlPage;
+
+public class PageRankNode implements Comparable<PageRankNode> {
     private String url_;
     private Float pageRank_;
     private Long docId_;
@@ -88,5 +90,11 @@ public class PageRankNode {
 
     public static boolean isPageRankNodeString(String s) {
         return s.startsWith("url:=");
+    }
+
+    @Override
+    public int compareTo(PageRankNode o) {
+        int res = pageRank_.compareTo(o.getPageRank());
+        return res == 0 ? url_.compareTo(o.getUrl()) : res;
     }
 }
