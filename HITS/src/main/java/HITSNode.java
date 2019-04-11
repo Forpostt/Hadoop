@@ -69,6 +69,10 @@ public class HITSNode implements Comparable<HITSNode> {
         return docId_ < 0;
     }
 
+    public Long getDocId() {
+        return docId_;
+    }
+
     public void setInLinks(ArrayList<String> inLinks) {
         String[] inLinksCopy = new String[inLinks.size()];
         int i = 0;
@@ -139,5 +143,10 @@ public class HITSNode implements Comparable<HITSNode> {
     public int compareTo(HITSNode o) {
         int res = authority_.compareTo(o.authority_);
         return res == 0 ? url_.compareTo(o.getUrl()) : res;
+    }
+
+    public void cleanLinks(){
+        inLinks_ = new String[]{};
+        outLinks_ = new String[]{};
     }
 }

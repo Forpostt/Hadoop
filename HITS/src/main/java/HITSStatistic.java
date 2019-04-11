@@ -1,5 +1,6 @@
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
+import org.apache.hadoop.mapreduce.Reducer;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
 import org.apache.hadoop.io.*;
@@ -10,11 +11,15 @@ import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
 import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.TreeSet;
 
 
 public class HITSStatistic extends Configured implements Tool {
     public static int topN = 30;
+    public static Text totalNodesKey = new Text("totalNodes");
+    public static Text totalLeafsKey = new Text("totalLeafs");
+    public static Text nodeKey = new Text("nodeKye");
 
     public static void main(String[] args) throws Exception {
         int rc = ToolRunner.run(new HITSStatistic(), args);
@@ -36,14 +41,15 @@ public class HITSStatistic extends Configured implements Tool {
         FileOutputFormat.setOutputPath(job, new Path(output));
 
         job.setMapperClass(StatisticMapper.class);
+        job.setReducerClass(StatisticReducer.class);
 
-        job.setOutputKeyClass(NullWritable.class);
+        job.setOutputKeyClass(Text.class);
         job.setOutputValueClass(Text.class);
 
         return job;
     }
 
-    public static class StatisticMapper extends Mapper<LongWritable, Text, NullWritable, Text> {
+    public static class StatisticMapper extends Mapper<LongWritable, Text, Text, Text> {
         TreeSet<HITSNode> topAuthority = new TreeSet<>();
         private long totalNodes = 0;
         private long totalLeafs = 0;
@@ -51,7 +57,9 @@ public class HITSStatistic extends Configured implements Tool {
         @Override
         protected void map(LongWritable key, Text value, Context context) {
             HITSNode node = HITSNode.fromString(value.toString());
-            topAuthority.add(node);
+            if (node.getDocId() > -1) {
+                topAuthority.add(node);
+            }
             totalNodes++;
 
             if (topAuthority.size() > topN) {
@@ -66,11 +74,46 @@ public class HITSStatistic extends Configured implements Tool {
         @Override
         protected void cleanup(Context context) throws IOException, InterruptedException{
             for (HITSNode node: topAuthority) {
-                context.write(NullWritable.get(), new Text(node.toString()));
+                node.cleanLinks();
+                context.write(nodeKey, new Text(node.toString()));
             }
-            context.write(NullWritable.get(), new Text("totalNode:=" + totalNodes));
-            context.write(NullWritable.get(), new Text("totalLeafs:=" + totalLeafs));
+            context.write(totalNodesKey, new Text(Long.toString(totalNodes)));
+            context.write(totalLeafsKey, new Text(Long.toString(totalLeafs)));
         }
     }
 
+    public static class StatisticReducer extends Reducer<Text, Text, NullWritable, Text> {
+        @Override
+        protected void reduce(Text key, Iterable<Text> value, Context context) throws IOException, InterruptedException{
+            if (key.equals(nodeKey)) {
+                TreeSet<HITSNode> topAuthority = new TreeSet<>();
+                for (Text nodeString: value) {
+                    HITSNode node = HITSNode.fromString(nodeString.toString());
+                    topAuthority.add(node);
+
+                    if (topAuthority.size() > topN) {
+                        topAuthority.pollFirst();
+                    }
+                }
+                Iterator itr = topAuthority.descendingIterator();
+                while (itr.hasNext()) {
+                    HITSNode node = (HITSNode)itr.next();
+                    node.cleanLinks();
+                    context.write(NullWritable.get(), new Text(node.toString()));
+                }
+            } else if (key.equals(totalLeafsKey)) {
+                long totalLeafs = 0L;
+                for (Text str: value) {
+                    totalLeafs += Long.parseLong(str.toString());
+                }
+                context.write(NullWritable.get(), new Text(totalLeafsKey.toString() + ":=" + totalLeafs));
+            } else if (key.equals(totalNodesKey)) {
+                long totalNodes = 0L;
+                for (Text str: value) {
+                    totalNodes += Long.parseLong(str.toString());
+                }
+                context.write(NullWritable.get(), new Text(totalNodesKey.toString() + ":=" + totalNodes));
+            }
+        }
+    }
 }

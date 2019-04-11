@@ -118,7 +118,7 @@ public class CreateGraphJob extends Configured implements Tool {
                     outputStream.write(buffer, 0, count);
                 }
             } catch (DataFormatException e) {
-                System.out.println("Error: " + e.getMessage());
+                System.out.println("Error in decompress: " + e.getMessage());
                 return null;
             }
 
