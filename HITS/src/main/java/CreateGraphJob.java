@@ -129,9 +129,9 @@ public class CreateGraphJob extends Configured implements Tool {
             return outputStream.toString();
         }
 
-        private static ArrayList<String> extractLinks(String html) {
+        private static ArrayList<String> extractLinks(String html, String base_url) {
             ArrayList<String> result = new ArrayList<>();
-            Document doc = Jsoup.parse(html);
+            Document doc = Jsoup.parse(html, "http://" + base_url);
 
             Elements links = doc.select("a[href]");
             String linkAttr;
@@ -161,9 +161,17 @@ public class CreateGraphJob extends Configured implements Tool {
                 return;
             }
 
-            ArrayList<String> links = extractLinks(html);
-            String[] outLinks = new String[links.size()];
             String docUrl = docIdToUrl.get(docId);
+            URI base;
+            try {
+                base = new URI(docUrl);
+            } catch (URISyntaxException exc) {
+                System.out.println("Wrong base address format: " + docUrl);
+                return;
+            }
+
+            ArrayList<String> links = extractLinks(html, base.getHost());
+            String[] outLinks = new String[links.size()];
 
             int i = 0;
             for (String link: links) {

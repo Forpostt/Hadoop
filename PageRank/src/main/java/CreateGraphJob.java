@@ -130,9 +130,9 @@ public class CreateGraphJob extends Configured implements Tool {
             return outputStream.toString();
         }
 
-        private static ArrayList<String> extractLinks(String html) {
+        private static ArrayList<String> extractLinks(String html, String base_url) {
             ArrayList<String> result = new ArrayList<>();
-            Document doc = Jsoup.parse(html);
+            Document doc = Jsoup.parse(html, "http://" + base_url);
 
             Elements links = doc.select("a[href]");
             String linkAttr;
@@ -162,7 +162,16 @@ public class CreateGraphJob extends Configured implements Tool {
                 return;
             }
 
-            ArrayList<String> links = extractLinks(html);
+            String docUrl = docIdToUrl.get(docId);
+            URI base;
+            try {
+                base = new URI(docUrl);
+            } catch (URISyntaxException exc) {
+                System.out.println("Wrong base address format: " + docUrl);
+                return;
+            }
+
+            ArrayList<String> links = extractLinks(html, base.getHost());
             String[] nodeLinks = new String[links.size()];
 
             int i = 0;
@@ -177,7 +186,6 @@ public class CreateGraphJob extends Configured implements Tool {
                 i++;
             }
 
-            String docUrl = docIdToUrl.get(docId);
             Boolean isLeaf = nodeLinks.length == 0;
             if (!processedUrls.contains(docUrl)) {
                 PageRankNode node = new PageRankNode(docUrl, 1.0f, docId, nodeLinks, isLeaf);

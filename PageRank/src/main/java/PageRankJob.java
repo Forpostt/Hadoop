@@ -28,7 +28,7 @@ public class PageRankJob extends Configured implements Tool {
     @Override
     public int run(String[] args) throws Exception {
         String input = args[0], output = args[1] + 0;
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 7; i++) {
             FileWriter fw = new FileWriter(leafsPageRankFile);
             fw.close();
             fw = new FileWriter(totalNodesFile);
