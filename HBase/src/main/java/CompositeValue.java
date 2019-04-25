@@ -1,10 +1,5 @@
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.BooleanWritable;
-import org.apache.hadoop.io.Writable;
-
-import java.io.DataInput;
-import java.io.DataOutput;
-import java.io.IOException;
 
 
 public class CompositeValue {
@@ -55,6 +50,8 @@ public class CompositeValue {
         disabled_ = new BooleanWritable(Boolean.parseBoolean(parts[1]));
         if (parts.length > 2) {
             robots_ = new Text(parts[2]);
+        } else {
+            robots_ = new Text();
         }
     }
 }

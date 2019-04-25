@@ -1,19 +1,28 @@
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.conf.Configured;
-import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.*;
 import org.apache.hadoop.mapreduce.Job;
-import org.apache.hadoop.mapreduce.Mapper;
 import org.apache.hadoop.mapreduce.Partitioner;
-import org.apache.hadoop.mapreduce.Reducer;
-import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
 import org.apache.hadoop.util.Tool;
 import org.apache.hadoop.util.ToolRunner;
+import org.apache.hadoop.hbase.client.Put;
+import org.apache.hadoop.hbase.client.Result;
+import org.apache.hadoop.hbase.client.Scan;
+import org.apache.hadoop.hbase.mapreduce.TableMapReduceUtil;
+import org.apache.hadoop.hbase.mapreduce.TableMapper;
+import org.apache.hadoop.hbase.mapreduce.TableReducer;
+import org.apache.hadoop.hbase.mapreduce.TableSplit;
+import org.apache.hadoop.hbase.util.Bytes;
+import org.apache.hadoop.hbase.io.ImmutableBytesWritable;
 
+import javax.xml.bind.DatatypeConverter;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.List;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 
 
 public class HBaseJob extends Configured implements Tool {
@@ -59,54 +68,57 @@ public class HBaseJob extends Configured implements Tool {
         }
     }
 
-    public static class HBaseMapper extends Mapper<LongWritable, Text, CompositeKey, Text> {
+    public static class HBaseMapper extends TableMapper<CompositeKey, Text> {
         @Override
-        protected void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException{
-            String s = value.toString();
-            if (s.startsWith("@")) {
-                String[] parts = s.substring(1, s.length()).split("<>");
-                String domain;
+        protected void map(ImmutableBytesWritable key, Result columns, Context context) throws IOException, InterruptedException{
+            TableSplit tableSplit = (TableSplit)context.getInputSplit();
+            String tableName = new String(tableSplit.getTableName());
 
+            if(tableName.equals(context.getConfiguration().get("webPagesPath"))) {
+                byte[] url = columns.getValue(Bytes.toBytes("docs"), Bytes.toBytes("url"));
+                byte[] isDisabled = columns.getValue(Bytes.toBytes("docs"), Bytes.toBytes("disabled"));
+
+                String urlString = Bytes.toString(url);
+
+                String domain;
                 try {
-                    URI uri = new URI(parts[0]);
+                    URI uri = new URI(urlString);
                     domain = uri.getHost();
                 } catch (URISyntaxException e) {
-                    System.out.println("Error");
+                    System.out.println("Error: " + e.getMessage());
                     return;
                 }
-
-                CompositeKey newKey = new CompositeKey(domain, false);
-                CompositeValue newValue = new CompositeValue(parts[0], Boolean.parseBoolean(parts[1]));
-                context.write(newKey, new Text(newValue.toString()));
+                context.write(new CompositeKey(domain, false), new Text(new CompositeValue(urlString, isDisabled != null).toString()));
             } else {
-                String[] parts = s.split("<>");
-                String domain;
+                byte[] site = columns.getValue(Bytes.toBytes("info"), Bytes.toBytes("site"));
+                byte[] robots = columns.getValue(Bytes.toBytes("info"), Bytes.toBytes("robots"));
 
+                String siteString = Bytes.toString(site);
+                String robotsString = Bytes.toString(robots);
+
+                String domain;
                 try {
-                    URI uri = new URI(parts[0]);
+                    URI uri = new URI(siteString);
                     domain = uri.getHost();
                 } catch (URISyntaxException e) {
-                    System.out.println("Error");
+                    System.out.println("Error: " + e.getMessage());
                     return;
                 }
-
-                CompositeKey newKey = new CompositeKey(domain, true);
-                CompositeValue newValue = new CompositeValue(parts[1]);
-                context.write(newKey, new Text(newValue.toString()));
+                context.write(new CompositeKey(domain, true), new Text(new CompositeValue(robotsString).toString()));
             }
         }
     }
 
-    public static class HBaseReducer extends Reducer<CompositeKey, Text, NullWritable, Text> {
-        public static class RobotsWhatever {
+    public static class HBaseReducer extends TableReducer<CompositeKey, Text, ImmutableBytesWritable> {
+        public static class RobotsProcessing {
             private String[] rules;
 
-            public RobotsWhatever() {
+            public RobotsProcessing() {
                 rules = new String[]{};
             }
 
-            public RobotsWhatever(String robots) {
-                rules = robots.split("@");
+            public RobotsProcessing(String robots) {
+                rules = robots.split("\n");
             }
 
             public Boolean isDisabled(String url) {
@@ -125,61 +137,89 @@ public class HBaseJob extends Configured implements Tool {
             }
         }
 
+        private static byte[] getMD5Hash(String url) {
+            try {
+                MessageDigest md = MessageDigest.getInstance("MD5");
+                byte[] messageDigest = md.digest(url.getBytes());
+                return DatatypeConverter.printHexBinary(messageDigest).toLowerCase().getBytes();
+
+            } catch (NoSuchAlgorithmException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
         @Override
         protected void reduce(CompositeKey key, Iterable<Text> value, Context context) throws IOException, InterruptedException  {
-            RobotsWhatever robots = new RobotsWhatever();
+            RobotsProcessing robots = new RobotsProcessing();
             Boolean isDisabled;
-
+            String path;
+            CompositeValue item = new CompositeValue();
 
             for (Text itemText: value) {
-                CompositeValue item = new CompositeValue();
                 item.fromString(itemText.toString());
 
                 if (!item.getRobots().isEmpty()) {
-                    robots = new RobotsWhatever(item.getRobots());
+                    robots = new RobotsProcessing(item.getRobots());
                     continue;
                 }
 
-                String path = "";
                 try {
                     URI uri = new URI(item.getDocUrl());
                     path = uri.getPath();
                 } catch (URISyntaxException e) {
-                    System.out.println("Error");
+                    System.out.println("Error: " + e.getMessage());
                     return;
                 }
 
                 isDisabled = robots.isDisabled(path);
 
                 if (isDisabled && !item.getDisabled()) {
-                    context.write(NullWritable.get(), new Text(item.getDocUrl() + " " + true));
+                    Put put = new Put(getMD5Hash(item.getDocUrl()));
+                    put.add(Bytes.toBytes("docs"), Bytes.toBytes("disabled"), Bytes.toBytes("Y"));
+                    context.write(null, put);
                 } else if (!isDisabled && item.getDisabled()) {
-                    context.write(NullWritable.get(), new Text(item.getDocUrl() + " " + false));
+                    Put put = new Put(getMD5Hash(item.getDocUrl()));
+                    put.add(Bytes.toBytes("docs"), Bytes.toBytes("disabled"), Bytes.toBytes(""));
+                    context.write(null, put);
                 }
             }
         }
     }
 
-    private Job getJobConf(Configuration conf, String input, String output) throws IOException {
+    private Job getJobConf(Configuration conf, String webPagesPath, String webSitesPath) throws IOException {
         Job job = Job.getInstance(conf);
         job.setJarByClass(HBaseJob.class);
         job.setJobName(HBaseJob.class.getCanonicalName());
 
-        FileInputFormat.addInputPath(job, new Path(input));
-        FileOutputFormat.setOutputPath(job, new Path(output));
+        List<Scan> inputTables = new ArrayList<>();
 
-        job.setMapperClass(HBaseMapper.class);
-        job.setReducerClass(HBaseReducer.class);
+        job.getConfiguration().set("webPagesPath", webPagesPath);
+        job.getConfiguration().set("webSitesPath", webSitesPath);
+
+        inputTables.add(new Scan());
+        inputTables.add(new Scan());
+        inputTables.get(0).setAttribute("scan.attributes.table.name", Bytes.toBytes(webPagesPath));
+        inputTables.get(1).setAttribute("scan.attributes.table.name", Bytes.toBytes(webSitesPath));
+
+        TableMapReduceUtil.initTableMapperJob(
+                inputTables,
+                HBaseMapper.class,
+                CompositeKey.class,
+                Text.class,
+                job
+        );
+
+        TableMapReduceUtil.initTableReducerJob(
+                webPagesPath,
+                HBaseReducer.class,
+                job
+        );
+
+        job.setNumReduceTasks(2);
 
         job.setPartitionerClass(HBasePartitioner.class);
         job.setSortComparatorClass(KeyComparator.class);
         job.setGroupingComparatorClass(HBaseGrouper.class);
-
-        job.setMapOutputKeyClass(CompositeKey.class);
-        job.setMapOutputValueClass(Text.class);
-
-        job.setOutputKeyClass(NullWritable.class);
-        job.setOutputValueClass(Text.class);
 
         return job;
     }

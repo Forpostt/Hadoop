@@ -1,4 +1,3 @@
-import com.sun.corba.se.spi.ior.Writeable;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.BooleanWritable;
 import org.apache.hadoop.io.WritableComparable;
